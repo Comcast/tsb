@@ -6,6 +6,10 @@ tsb
 It is designed to allow organizations, teams, and individuals to manage
 their builds of systems that may be shared with others.
 
+There is a [quickstart guide](docs/init.md) to getting going with `tsb` as well
+as a [strategy guide](docs/theory.md) for managing downstream repositories in
+general.
+
 Usage: `tsb [options] [commands]`
 
 Commands
