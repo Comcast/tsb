@@ -26,7 +26,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.comcast.com/cdneng/tsb/loadfiles"
+	"github.com/comcast/tsb/loadfiles"
 )
 
 type Executor struct {
