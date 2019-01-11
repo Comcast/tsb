@@ -36,7 +36,8 @@ type Repos map[string]*Repo
 
 type Repo struct {
 	Source string   `yaml:"src"`
-	Branch string   `yaml:"branch"`
+	Branch string   `yaml:"branch,omitempty"`
+	Tag    string   `yaml:"tag,omitempty"`
 	Head   string   `yaml:"head"`
 	Extra  []string `yaml:"extra"`
 }
@@ -179,9 +180,26 @@ func SetRemote(repo gitRepo, remote, target string) error {
 
 func (r *Repo) Update(dir, name string) error {
 	repo := gitRepo(filepath.Join(dir, `src`, name))
-	newhead, err := repo.git(`log`, `-n1`, `--format=%H`, path.Join(`origin`, r.Branch))
-	if err != nil {
-		return errors.New(`Unable to get head of branch origin/` + r.Branch + `: ` + err.Error())
+
+	var newhead []byte
+	var err error
+
+	if r.Branch != "" {
+		newhead, err = repo.git(`log`, `-n1`, `--format=%H`, path.Join(`origin`, r.Branch))
+		if err != nil {
+			return errors.New(`Unable to get head of branch origin/` + r.Branch + `: ` + err.Error())
+		}
+	} else if r.Tag != "" {
+
+		_, err := repo.git(`checkout`, `-B`, r.Tag+`_local`, r.Tag)
+		if err != nil {
+			return errors.New(`Unable to create branch from Tag ` + r.Tag + `: ` + err.Error())
+		}
+
+		newhead, err = repo.git(`log`, `-n1`, `--format=%H`, r.Tag+`_local`)
+		if err != nil {
+			return errors.New(`Unable to get head of branch ` + r.Tag + `_local` + `: ` + err.Error())
+		}
 	}
 	newhead = bytes.TrimSpace(newhead)
 	r.Head = string(newhead)
