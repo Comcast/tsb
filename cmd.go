@@ -82,11 +82,27 @@ func (e *Executor) Execute() error {
 		if err != nil {
 			return err
 		}
+
 		for name, repo := range cfg.Repos {
-			for _, cherry := range cfg.Patches[name] {
-				err = repo.Cherry(e.Dir(), name, cherry)
-				if err != nil {
-					return fmt.Errorf("Unable to apply %s to %s: "+cherry, name, err.Error())
+			if cfg.Patches[name] != nil {
+				for _, patch_item := range cfg.Patches[name] {
+					if patch_item.Str != "" {
+						err = repo.Cherry(e.Dir(), name, patch_item.Str)
+						if err != nil {
+							return fmt.Errorf("Unable to apply %s to %s: "+patch_item.Str, name, err.Error())
+						}
+					} else if patch_item.Sub != nil {
+						if len(patch_item.Sub.Changesets) > 0 {
+							for _, changeset := range patch_item.Sub.Changesets {
+								err = repo.Cherry(e.Dir(), name, changeset)
+								if err != nil {
+									return fmt.Errorf("Unable to apply %s to %s: "+changeset, name, err.Error())
+								}
+							}
+						}
+					} else {
+						return errors.New(`Unrecognized format in patches yaml file`)
+					}
 				}
 			}
 		}
@@ -117,7 +133,23 @@ func (e *Executor) Execute() error {
 		if err != nil {
 			return err
 		}
+
+		for name, _ := range cfg.Patches {
+			g := gitRepo(path.Join(e.Dir(), `src`, name))
+			for sub_ind, patch_item := range cfg.Patches[name] {
+				if patch_item.Sub != nil {
+					b, err := g.git(`log`, `origin/`+cfg.Repos[name].Branch+`..`+patch_item.Sub.Branch, `--format=%H`, `--reverse`)
+					if err != nil {
+						return err
+					}
+					changesets := strings.Split(string(bytes.TrimSpace(b)), "\n")
+					cfg.Patches[name][sub_ind].Sub.Changesets = changesets
+				}
+			}
+		}
+
 		return e.StoreConfig(cfg)
+
 	case `cherry`:
 		arg := e.PopArg()
 		if arg == `` {
@@ -151,8 +183,54 @@ func (e *Executor) Execute() error {
 			return fmt.Errorf(`"%s" is not a valid repository.`, repo)
 		}
 
-		cfg.Patches[repo] = append(cfg.Patches[repo], changeset)
+		new_patch := new(Patch)
+		new_patch.Str = changeset
+
+		cfg.Patches[repo] = append(cfg.Patches[repo], *new_patch)
 		return e.StoreConfig(cfg)
+
+	case `subscribe`:
+		arg := e.PopArg()
+		if arg == `` {
+			return errors.New(`No argument provided to subscribe`)
+		}
+		if e.at != `` {
+			return errors.New(`Cannot subscribe from alternate revision`)
+		}
+		repo, branch := ParseCherry(arg)
+
+		cfg, err := e.Config(``)
+		if err != nil {
+			return err
+		}
+
+		if repo == `` {
+			if len(cfg.Repos) != 1 {
+				return errors.New("You must supply repository to subscribe when you do not have exactly one repository.")
+			}
+			for repo = range cfg.Repos {
+			}
+		}
+
+		if _, ok := cfg.Repos[repo]; ok {
+			g := gitRepo(path.Join(e.Dir(), `src`, repo))
+			all_branches, err := g.git(`branch`, `-a`)
+			if err != nil {
+				return err
+			}
+			if !strings.Contains(string(all_branches), " remotes/"+string(branch)+"\n") {
+				return fmt.Errorf("%s is not a branch in repository %s", branch, repo)
+			}
+		} else {
+			return fmt.Errorf(`"%s" is not a valid repository.`, repo)
+		}
+		new_sub := new(Subscription)
+		new_sub.Branch = branch
+		new_patch := new(Patch)
+		new_patch.Sub = new_sub
+		cfg.Patches[repo] = append(cfg.Patches[repo], *new_patch)
+		return e.StoreConfig(cfg)
+
 	case `ls-cherry`:
 		return e.ListPatches()
 	case `validate`:
@@ -244,19 +322,32 @@ func (e *Executor) ListPatches() error {
 		repos = append(repos, repo)
 	}
 	sort.Strings(repos)
-	for _, repo := range repos {
-		patches := cfg.Patches[repo]
-		if len(patches) > 0 {
-			fmt.Printf("Patches for %s:\n", repo)
 
-			g := gitRepo(path.Join(e.Dir(), `src`, repo))
-			for _, patch := range patches {
-				b, err := g.git(`log`, `-n1`, `--format=%s (%an)`, patch)
+	for _, repo := range repos {
+		fmt.Printf("Patches for %s:\n", repo)
+		patch_items := cfg.Patches[repo]
+		g := gitRepo(path.Join(e.Dir(), `src`, repo))
+		for _, change_item := range patch_items {
+			if change_item.Str != "" {
+				b, err := g.git(`log`, `-n1`, `--format=%s (%an)`, change_item.Str)
 				if err != nil {
-					fmt.Printf("\t%s: Failed to find commit; \"%v\"\n", patch, err)
-				} else {
-					fmt.Printf("\t%s: %s\n", patch, strings.TrimSpace(string(b)))
+					fmt.Printf("\t%s: Failed to find commit; \"%v\"\n", change_item.Str, err)
 				}
+				fmt.Printf("\t%s: %s\n", change_item.Str, strings.TrimSpace(string(b)))
+			} else if change_item.Sub != nil {
+				fmt.Printf("\tChangesets for subscription to %s:\n", change_item.Sub.Branch)
+				if len(change_item.Sub.Changesets) > 0 {
+					for _, changeset := range change_item.Sub.Changesets {
+						b, err := g.git(`log`, `-n1`, `--format=%s (%an)`, changeset)
+						if err != nil {
+							fmt.Printf("\t\t%s: Failed to find commit; \"%v\"\n", changeset, err)
+						} else {
+							fmt.Printf("\t\t%s: %s\n", changeset, strings.TrimSpace(string(b)))
+						}
+					}
+				}
+			} else {
+				return errors.New("Unrecognized format in patches yaml")
 			}
 		}
 	}

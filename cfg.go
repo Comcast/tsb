@@ -35,14 +35,79 @@ type Config struct {
 type Repos map[string]*Repo
 
 type Repo struct {
-	Source string   `yaml:"src"`
-	Branch string   `yaml:"branch,omitempty"`
-	Tag    string   `yaml:"tag,omitempty"`
-	Head   string   `yaml:"head"`
-	Extra  []string `yaml:"extra"`
+	Source string  `yaml:"src"`
+	Branch string  `yaml:"branch,omitempty"`
+	Tag    string  `yaml:"tag,omitempty"`
+	Head   string  `yaml:"head"`
+	Extras []Extra `yaml:"extra"`
 }
 
-type Patches map[string][]string
+type Subscription struct {
+	Branch     string   `yaml:"branch"`
+	Changesets []string `yaml:"changesets,omitempty"`
+}
+
+type Patch struct {
+	Str string
+	Sub *Subscription
+}
+
+type Patches map[string][]Patch
+
+type Extra struct {
+	Str string
+	Mp  map[string]string
+}
+
+func (l *Extra) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	str := ""
+	if err := unmarshal(&str); err == nil {
+		*l = Extra{Str: str}
+		return nil
+	}
+	lst := map[string]string{}
+	if err := unmarshal(&lst); err == nil {
+		*l = Extra{Mp: lst}
+		return nil
+	}
+	return errors.New("Not a map or a string")
+}
+
+func (l Extra) MarshalYAML() (interface{}, error) {
+	if l.Str != "" {
+		return l.Str, nil
+	} else if l.Mp != nil {
+		return l.Mp, nil
+	} else {
+		return nil, errors.New("Attempting to Marshal invalid repo")
+	}
+}
+
+func (l Patch) MarshalYAML() (interface{}, error) {
+	if l.Str != "" {
+		return l.Str, nil
+	} else if l.Sub != nil {
+		return l.Sub, nil
+	} else {
+		return nil, errors.New("Attempting to Marsahal invalid patch")
+	}
+}
+
+func (l *Patch) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	str := ""
+	if err := unmarshal(&str); err == nil {
+		*l = Patch{Str: str}
+		return nil
+	}
+	var sub Subscription
+	if err := unmarshal(&sub); err == nil {
+		if sub.Branch != "" {
+			*l = Patch{Sub: &sub}
+			return nil
+		}
+	}
+	return errors.New("Not a string or valid subscription")
+}
 
 func (rs Repos) forAllRepos(f func(r *Repo, dir, name string) error, dir string) error {
 	var wg sync.WaitGroup
@@ -121,14 +186,29 @@ func (r *Repo) Fetch(dir string, name string) error {
 	}
 	fmt.Println("Marking origin used.")
 	delete(remoteBag, `origin`)
-	for i, extra := range r.Extra {
-		rmtName := fmt.Sprintf(`extra%02d`, i)
-		err := SetRemote(gr, rmtName, extra)
-		if err != nil {
-			return err
+
+	for i, extra := range r.Extras {
+		if extra.Str != "" {
+			rmtName := fmt.Sprintf(`extra%02d`, i)
+			err := SetRemote(gr, rmtName, extra.Str)
+			if err != nil {
+				return err
+			}
+			fmt.Println("Marking " + rmtName + " used.")
+			delete(remoteBag, rmtName)
+		} else if extra.Mp != nil {
+			if extra.Mp["name"] == "" || extra.Mp["path"] == "" {
+				return errors.New(`Extra yaml objects require both name and path`)
+			}
+			err := SetRemote(gr, extra.Mp["name"], extra.Mp["path"])
+			if err != nil {
+				return err
+			}
+			fmt.Println("Marking " + extra.Mp["name"] + " used.")
+			delete(remoteBag, extra.Mp["name"])
+		} else {
+			return errors.New(`Unrecognized type in Extra yaml`)
 		}
-		fmt.Println("Marking " + rmtName + " used.")
-		delete(remoteBag, rmtName)
 	}
 
 	for unusedRemote := range remoteBag {

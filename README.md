@@ -17,9 +17,14 @@ Commands
   - `tsb fetch` acquires all the repositories for `/src/`.
   - `tsb build` builds the build branch, with patches applied.
   - `tsb update` fetches the latest updates and creates a new commit in
-    the config repository.
+    the config repository. This will also fetch the latest updates in the 
+    subscribed branches and update the patch file's subscriptions.
   - `tsb cherry {hash}` cherry-picks `{hash}` and adds it to the patch
     file.
+  - `tsb subscribe {branch}` subscribes to the given branch. The branch must
+    be in the form `{repoName}:{branchName}`. The branch name must specify
+    the name of the remote that the subscription should be pulled from (`remoteName/branchName`). 
+    The subscription is then added to the patch file.
   - `tsb ls-cherry` lists out the current list of cherry-picks, along
     with some basic information about them to help identify them.
   - `tsb verbose` and `tsb quiet` do nothing on their own, but set the
@@ -85,19 +90,28 @@ successful.
 
 ### patches.yml
 
-`patches.yml` is a YAML 1.2 file. It should be a list of changeset
-hashes.
+`patches.yml` is a YAML 1.2 file. It should be a list of whose members are hashes
+or branch subscriptions:
+
+    superwidget:
+      changesets:
+      - {changeset1}
+      - branch: beta
+        changesets:
+          - {changesetA}
+          - {changesetB}
+      - {changeset2}
 
 The hashes can refer to any changeset in any of the referenced sources.
-Each changeset will be cherry-picked, in order, to the head of the
-branch to be built.
+Each changeset will be cherry-picked, in order, to the head of the branch
+to be built.
 
 The `patches.yml` file can be empty. Indeed, empty is the most desirable
 state, since that means building directly against the primary
 repository.
 
-This file will not usually need to be modified manually. The `tsb
-cherry` command will safely modify this file.
+This file will not usually need to be modified manually. The `tsb cherry`,
+`tsb subscribe` and `tsb update` commands will safely modify this file.
 
 ### repos.yml
 
@@ -110,7 +124,8 @@ each repository:
       head: 4817590950ca0b52d3336011a1abdbb6f906e23228c5857cc0f7703828f6966f
       extra:
         - https://private.example.com/repos/superwidget-alpha
-        - https://private.example.com/repos/superwidget-beta
+        - path: https://private.example.com/repos/superwidget-beta
+          name: beta
     hyperwidget:
       src: https://upstream.example.net/repos/hyperwidget
       branch: lts-7.2
@@ -123,6 +138,9 @@ Each repository member object should have:
   - a `head` member, which is an explicit changeset hash to build; and
   - an optional `extra` member, which is a list of extra source
     addresses that should be fetched in addition to the primary `src`.
+    These list members can either be a string representation of the path
+    or an object containing a `name` and a `path`. If a name is provided,
+    the remote will be given that name when added.
 
 When building, `branch` is ignored; `head` controls. `branch` is used to
 update `head` with `tsb update`.
