@@ -34,6 +34,9 @@ func main() {
 		err := ex.Execute()
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err.Error())
+			/* For now just adding an error exit code. This can be done with more finese in the future
+			   with the proper code passed around but this works for now */
+			os.Exit(1)
 			break
 		}
 	}
