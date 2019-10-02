@@ -16,30 +16,18 @@ limitations under the License.
 
 package main
 
-import "sort"
+import (
+	"sort"
 
-type Compose struct {
-	Version  string          `yaml:"version"`
-	Services ComposeServices `yaml:"services"`
-}
+	"github.com/comcast/tsb/docker-types"
+)
 
-type ComposeServices map[string]ComposeService
-
-type ComposeService struct {
-	Image   string              `yaml:"image"`
-	Build   ComposeServiceBuild `yaml:"build"`
-	Volumes []string            `yaml:"volumes"`
-}
-
-type ComposeServiceBuild struct {
-	Dockerfile string `yaml:"dockerfile"`
-	Context    string `yaml:"context"`
-}
+type Compose types.Config
 
 func (c Compose) ServiceNames() []string {
 	var names []string
-	for name := range c.Services {
-		names = append(names, name)
+	for _, svc := range c.Services {
+		names = append(names, svc.Name)
 	}
 	sort.Strings(names)
 	return names
