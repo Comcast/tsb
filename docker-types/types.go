@@ -461,7 +461,8 @@ type IPAMConfig struct {
 
 // IPAMPool for a network
 type IPAMPool struct {
-	Subnet string `yaml:",omitempty" json:"subnet,omitempty"`
+	Subnet  string `yaml:",omitempty" json:"subnet,omitempty"`
+	Gateway string `yaml:",omitempty" json:"gateway,omitempty"`
 }
 
 // VolumeConfig for a volume
