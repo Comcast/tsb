@@ -85,7 +85,7 @@ entrypoint for the build. It should not run the build directly via `RUN`
 instructions, since build states may be cached by docker.
 
 The run script should copy artefacts and log files to the location in
-the container where `/dist/` is mounted and return 0 iff the build was
+the container where `/dist/` is mounted and return 0 if the build was
 successful.
 
 ### patches.yml
