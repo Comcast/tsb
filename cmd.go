@@ -235,6 +235,8 @@ func (e *Executor) Execute() error {
 		return e.ListPatches()
 	case `validate`:
 		return e.Validate()
+	case `diff`:
+		return e.Diff()
 	case `verbose`, `-v`:
 		verbose = true
 		return nil
@@ -351,5 +353,70 @@ func (e *Executor) ListPatches() error {
 			}
 		}
 	}
+	return nil
+}
+
+func (e *Executor) Diff() error {
+
+	g := gitRepo(".")
+	b, _ := g.git(`log`, `-n1`, `--format=%s (%an)`)
+	fmt.Printf("Differences from previous TSB repo Commit:\n")
+	fmt.Printf("\t Commit Message: %s\n", string(b))
+
+	b, err := g.git(`diff`, `HEAD^`, `HEAD`, `--format=%s`, `-U0`, `patches.yml`)
+	if err != nil {
+		fmt.Printf("err: %s", err)
+		return nil
+	}
+
+	changes := strings.Split(string(b), "\n")
+	var removals []string
+	var additions []string
+	for _, line := range changes {
+		if strings.HasPrefix(line, "-- ") {
+			// patch removed
+			removals = append(removals, strings.TrimPrefix(line, "-- "))
+		}
+
+		if strings.HasPrefix(line, "+- ") {
+			// patch added
+			additions = append(additions, strings.TrimPrefix(line, "+- "))
+		}
+	}
+
+	cfg, err := e.Config(e.at)
+	if err != nil {
+		return err
+	}
+
+	var repos []string
+	for repo := range cfg.Patches {
+		repos = append(repos, repo)
+	}
+	sort.Strings(repos)
+
+	fmt.Printf("Removals: \n")
+	for _, removal := range removals {
+		for _, repo := range repos {
+			g := gitRepo(path.Join(e.Dir(), `src`, repo))
+			msg, err := g.git(`log`, `-n1`, `--format=%s (%an)`, removal)
+			if err == nil {
+				fmt.Printf("\t%s: %s - %s \n", repo, removal, msg)
+				break
+			}
+		}
+	}
+	fmt.Printf("Additions: \n")
+	for _, addition := range additions {
+		for _, repo := range repos {
+			g := gitRepo(path.Join(e.Dir(), `src`, repo))
+			msg, err := g.git(`log`, `-n1`, `--format=%s (%an)`, addition)
+			if err == nil {
+				fmt.Printf("\t%s: %s - %s \n", repo, addition, msg)
+				break
+			}
+		}
+	}
+	fmt.Printf("\n")
 	return nil
 }
