@@ -235,8 +235,8 @@ func (e *Executor) Execute() error {
 		return e.ListPatches()
 	case `validate`:
 		return e.Validate()
-	case `diff`:
-		return e.Diff()
+	case `patchdiff`:
+		return e.PatchDiff()
 	case `verbose`, `-v`:
 		verbose = true
 		return nil
@@ -356,7 +356,7 @@ func (e *Executor) ListPatches() error {
 	return nil
 }
 
-func (e *Executor) Diff() error {
+func (e *Executor) PatchDiff() error {
 
 	g := gitRepo(".")
 	b, _ := g.git(`log`, `-n1`, `--format=%s (%an)`)
