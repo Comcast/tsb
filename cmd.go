@@ -72,7 +72,7 @@ func (e *Executor) Execute() error {
 		}
 
 		return cfg.Repos.Fetch(e.Dir())
-	case `build`:
+	case `build`, `prebuild`:
 		cfg, err := e.Config(e.at)
 		if err != nil {
 			return err
@@ -107,15 +107,17 @@ func (e *Executor) Execute() error {
 			}
 		}
 
-		for _, service := range cfg.Compose.ServiceNames() {
-			b, err := run(`sudo`, `docker-compose`, `-f`, path.Join(e.Dir(), `docker-compose.yml`), `build`, `--pull`, `--no-cache`, `--force-rm`, service)
-			if err != nil {
-				return errors.New(`Unable to create build image ` + service + `: ` + err.Error() + "\n" + string(b))
-			}
+		if cmd == `build` {
+			for _, service := range cfg.Compose.ServiceNames() {
+				b, err := run(`sudo`, `docker-compose`, `-f`, path.Join(e.Dir(), `docker-compose.yml`), `build`, `--pull`, `--no-cache`, `--force-rm`, service)
+				if err != nil {
+					return errors.New(`Unable to create build image ` + service + `: ` + err.Error() + "\n" + string(b))
+				}
 
-			b, err = run(`sudo`, `docker-compose`, `-f`, path.Join(e.Dir(), `docker-compose.yml`), `run`, `--rm`, service)
-			if err != nil {
-				return errors.New(`Failed to build ` + service + `: ` + err.Error() + "\n" + string(b))
+				b, err = run(`sudo`, `docker-compose`, `-f`, path.Join(e.Dir(), `docker-compose.yml`), `run`, `--rm`, service)
+				if err != nil {
+					return errors.New(`Failed to build ` + service + `: ` + err.Error() + "\n" + string(b))
+				}
 			}
 		}
 
