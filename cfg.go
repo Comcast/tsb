@@ -184,7 +184,6 @@ func (r *Repo) Fetch(dir string, name string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("Marking origin used.")
 	delete(remoteBag, `origin`)
 
 	for i, extra := range r.Extras {
@@ -194,7 +193,6 @@ func (r *Repo) Fetch(dir string, name string) error {
 			if err != nil {
 				return err
 			}
-			fmt.Println("Marking " + rmtName + " used.")
 			delete(remoteBag, rmtName)
 		} else if extra.Mp != nil {
 			if extra.Mp["name"] == "" || extra.Mp["path"] == "" {
@@ -204,7 +202,6 @@ func (r *Repo) Fetch(dir string, name string) error {
 			if err != nil {
 				return err
 			}
-			fmt.Println("Marking " + extra.Mp["name"] + " used.")
 			delete(remoteBag, extra.Mp["name"])
 		} else {
 			return errors.New(`Unrecognized type in Extra yaml`)

@@ -16,6 +16,10 @@ Commands
 --------
   - `tsb fetch` acquires all the repositories for `/src/`.
   - `tsb build` builds the build branch, with patches applied.
+  - `tsb prebuild` sets up the source repositories and performs all patching up
+    to the point of building, but does not perform a build. After this step,
+    running the services in `docker-compose.yml` with docker should produce the
+    build artefacts.
   - `tsb update` fetches the latest updates and creates a new commit in
     the config repository. This will also fetch the latest updates in the 
     subscribed branches and update the patch file's subscriptions.
