@@ -86,17 +86,17 @@ func (e *Executor) Execute() error {
 		for name, repo := range cfg.Repos {
 			if cfg.Patches[name] != nil {
 				for _, patch_item := range cfg.Patches[name] {
-					if patch_item.Str != "" {
-						err = repo.Cherry(e.Dir(), name, patch_item.Str)
+					if patch_item.Str.Node != "" {
+						err = repo.Cherry(e.Dir(), name, patch_item.Str.Node)
 						if err != nil {
-							return fmt.Errorf("Unable to apply %s to %s: "+patch_item.Str, name, err.Error())
+							return fmt.Errorf("Unable to apply %s to %s: "+patch_item.Str.Node, name, err.Error())
 						}
 					} else if patch_item.Sub != nil {
 						if len(patch_item.Sub.Changesets) > 0 {
 							for _, changeset := range patch_item.Sub.Changesets {
-								err = repo.Cherry(e.Dir(), name, changeset)
+								err = repo.Cherry(e.Dir(), name, changeset.Node)
 								if err != nil {
-									return fmt.Errorf("Unable to apply %s to %s: "+changeset, name, err.Error())
+									return fmt.Errorf("Unable to apply %s to %s: "+changeset.Node, name, err.Error())
 								}
 							}
 						}
@@ -140,11 +140,15 @@ func (e *Executor) Execute() error {
 			g := gitRepo(path.Join(e.Dir(), `src`, name))
 			for sub_ind, patch_item := range cfg.Patches[name] {
 				if patch_item.Sub != nil {
-					b, err := g.git(`log`, `origin/`+cfg.Repos[name].Branch+`..`+patch_item.Sub.Branch, `--format=%H`, `--reverse`)
+					b, err := g.git(`log`, `origin/`+cfg.Repos[name].Branch+`..`+patch_item.Sub.Branch, ChangesetGitFormatArg, `--reverse`)
 					if err != nil {
 						return err
 					}
-					changesets := strings.Split(string(bytes.TrimSpace(b)), "\n")
+					cslines := strings.Split(string(bytes.TrimSpace(b)), "\n")
+					changesets := make([]Changeset, len(cslines))
+					for i, csline := range cslines {
+						changesets[i] = NewChangeset(csline)
+					}
 					cfg.Patches[name][sub_ind].Sub.Changesets = changesets
 				}
 			}
@@ -171,12 +175,13 @@ func (e *Executor) Execute() error {
 				return errors.New("You must supply repository to cherry when you do not have exactly one repository.")
 			}
 			for repo = range cfg.Repos {
+				/* Just use range to get the only repo name available. */
 			}
 		}
 
 		if _, ok := cfg.Repos[repo]; ok {
 			g := gitRepo(path.Join(e.Dir(), `src`, repo))
-			b, err := g.git(`log`, `-n1`, `--format=%H`, changeset)
+			b, err := g.git(`log`, `-n1`, ChangesetGitFormatArg, changeset)
 			if err != nil {
 				return fmt.Errorf(`"%s" is not a valid changeset in "%s": %s`, changeset, repo, err.Error())
 			}
@@ -186,7 +191,7 @@ func (e *Executor) Execute() error {
 		}
 
 		new_patch := new(Patch)
-		new_patch.Str = changeset
+		new_patch.Str = NewChangeset(changeset)
 
 		cfg.Patches[repo] = append(cfg.Patches[repo], *new_patch)
 		return e.StoreConfig(cfg)
@@ -332,21 +337,21 @@ func (e *Executor) ListPatches() error {
 		patch_items := cfg.Patches[repo]
 		g := gitRepo(path.Join(e.Dir(), `src`, repo))
 		for _, change_item := range patch_items {
-			if change_item.Str != "" {
-				b, err := g.git(`log`, `-n1`, `--format=%s (%an)`, change_item.Str)
+			if change_item.Str.Node != "" {
+				b, err := g.git(`log`, `-n1`, `--format=%s (%an) <%aI!%ae>`, change_item.Str.Node)
 				if err != nil {
-					fmt.Printf("\t%s: Failed to find commit; \"%v\"\n", change_item.Str, err)
+					fmt.Printf("\t%s: Failed to find commit; \"%v\"\n", change_item.Str.Node, err)
 				}
-				fmt.Printf("\t%s: %s\n", change_item.Str, strings.TrimSpace(string(b)))
+				fmt.Printf("\t%s: %s\n", change_item.Str.Node, strings.TrimSpace(string(b)))
 			} else if change_item.Sub != nil {
 				fmt.Printf("\tChangesets for subscription to %s:\n", change_item.Sub.Branch)
 				if len(change_item.Sub.Changesets) > 0 {
 					for _, changeset := range change_item.Sub.Changesets {
-						b, err := g.git(`log`, `-n1`, `--format=%s (%an)`, changeset)
+						b, err := g.git(`log`, `-n1`, `--format=%s (%an) <%aI!ae>`, changeset.Node)
 						if err != nil {
-							fmt.Printf("\t\t%s: Failed to find commit; \"%v\"\n", changeset, err)
+							fmt.Printf("\t\t%s: Failed to find commit; \"%v\"\n", changeset.Node, err)
 						} else {
-							fmt.Printf("\t\t%s: %s\n", changeset, strings.TrimSpace(string(b)))
+							fmt.Printf("\t\t%s: %s\n", changeset.Node, strings.TrimSpace(string(b)))
 						}
 					}
 				}

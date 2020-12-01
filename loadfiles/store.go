@@ -20,11 +20,10 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"errors"
-	"fmt"
 	"reflect"
 	"strings"
 
-	yaml "src/gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v3"
 )
 
 func Store(dir File, obj interface{}) error {
@@ -44,15 +43,12 @@ func Store(dir File, obj interface{}) error {
 	t := v.Type()
 	for i := 0; i < t.NumField(); i++ {
 		filespec := t.Field(i).Tag.Get(`file`)
-		fmt.Println(t.Field(i).Tag)
 		if filespec == `` {
-			fmt.Println(`No file tag for field, skipping ` + t.Field(i).Name)
 			continue
 		}
 
 		specparts := strings.SplitN(filespec, `,`, 2)
 		if len(specparts) < 2 {
-			fmt.Println(`No format in file tag for field, skipping ` + t.Field(i).Name)
 			continue
 		}
 
@@ -73,7 +69,6 @@ func Store(dir File, obj interface{}) error {
 
 			switch format {
 			case `yaml`:
-				fmt.Println("Storing yaml in " + file.String())
 				b, err := yaml.Marshal(member)
 				if err != nil {
 					return errors.New(`Unable to marshal yaml ` + err.Error())

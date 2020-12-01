@@ -24,7 +24,7 @@ import (
 	"reflect"
 	"strings"
 
-	yaml "src/gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v3"
 )
 
 func Load(dir File, obj interface{}) error {
@@ -44,15 +44,12 @@ func Load(dir File, obj interface{}) error {
 	t := v.Type()
 	for i := 0; i < t.NumField(); i++ {
 		filespec := t.Field(i).Tag.Get(`file`)
-		/* fmt.Println(t.Field(i).Tag) */
 		if filespec == `` {
-			/* fmt.Println(`No file tag for field, skipping ` + t.Field(i).Name) */
 			continue
 		}
 
 		specparts := strings.SplitN(filespec, `,`, 2)
 		if len(specparts) < 2 {
-			/* fmt.Println(`No format in file tag for field, skipping ` + t.Field(i).Name) */
 			continue
 		}
 
@@ -78,7 +75,6 @@ func Load(dir File, obj interface{}) error {
 					return errors.New(`Unable to read file ` + file.String() + `: ` + err.Error())
 				}
 
-				/* fmt.Println("Loading yaml from " + file) */
 				return yaml.Unmarshal(b, member)
 			case `json`:
 				return json.NewDecoder(f).Decode(member)

@@ -23,7 +23,10 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"sync"
+
+	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
@@ -43,12 +46,17 @@ type Repo struct {
 }
 
 type Subscription struct {
-	Branch     string   `yaml:"branch"`
-	Changesets []string `yaml:"changesets,omitempty"`
+	Branch     string      `yaml:"branch"`
+	Changesets []Changeset `yaml:"changesets,omitempty"`
+}
+
+type Changeset struct {
+	Node    string
+	Comment string
 }
 
 type Patch struct {
-	Str string
+	Str Changeset
 	Sub *Subscription
 }
 
@@ -84,7 +92,7 @@ func (l Extra) MarshalYAML() (interface{}, error) {
 }
 
 func (l Patch) MarshalYAML() (interface{}, error) {
-	if l.Str != "" {
+	if l.Str.Node != "" {
 		return l.Str, nil
 	} else if l.Sub != nil {
 		return l.Sub, nil
@@ -94,7 +102,7 @@ func (l Patch) MarshalYAML() (interface{}, error) {
 }
 
 func (l *Patch) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	str := ""
+	var str Changeset
 	if err := unmarshal(&str); err == nil {
 		*l = Patch{Str: str}
 		return nil
@@ -107,6 +115,25 @@ func (l *Patch) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		}
 	}
 	return errors.New("Not a string or valid subscription")
+}
+
+func (cs *Changeset) UnmarshalYAML(value *yaml.Node) error {
+	err := value.Decode(&cs.Node)
+	if err != nil {
+		return err
+	}
+	cs.Comment = value.LineComment
+	return nil
+}
+
+func (cs Changeset) MarshalYAML() (interface{}, error) {
+	value := &yaml.Node{}
+	err := value.Encode(cs.Node)
+	if err != nil {
+		return cs.Node, err
+	}
+	value.LineComment = cs.Comment
+	return value, nil
 }
 
 func (rs Repos) forAllRepos(f func(r *Repo, dir, name string) error, dir string) error {
@@ -297,4 +324,30 @@ func (r *Repo) Cherry(dir, name, changeset string) error {
 	repo := gitRepo(filepath.Join(dir, `src`, name))
 	_, err := repo.git(`cherry-pick`, changeset)
 	return err
+}
+
+const ChangesetGitFormatArg = `--format=%H %aI!%ae %s`
+
+/* NewChangeset constructs a new changeset object from a line that matches git format "%H %aI!%ae %s".
+ *
+ * %aI!%ae is a commit reference as described in the Reposurgeon documentation:
+ * http://www.catb.org/esr/reposurgeon/repository-editing.html#_step_six_good_practice
+ */
+func NewChangeset(line string) Changeset {
+	parts := strings.SplitN(line, ` `, 3)
+	var node, ref, sub string
+	switch {
+	case len(parts) > 2:
+		sub = parts[2]
+		fallthrough
+	case len(parts) > 1:
+		ref = parts[1]
+		fallthrough
+	case len(parts) > 0:
+		node = parts[0]
+	}
+	return Changeset{
+		Node:    node,
+		Comment: fmt.Sprintf("<%s> %s", ref, sub),
+	}
 }
