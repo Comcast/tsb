@@ -37,12 +37,25 @@ type Config struct {
 
 type Repos map[string]*Repo
 
+type BuildStrategy string
+
+const (
+	// BuildStrategyCherry represents the cherry-picking build strategy.
+	BuildStrategyCherry = BuildStrategy("cherry")
+	// BuildStrategyMerge represents the merging build strategy.
+	BuildStrategyMerge = BuildStrategy("merge")
+	// BuildStrategyInvalid represents a BuildStrategy. note that this is the default
+	// construction for a BuildStrategy.
+	BuildStrategyInvalid = BuildStrategy("")
+)
+
 type Repo struct {
-	Source string  `yaml:"src"`
-	Branch string  `yaml:"branch,omitempty"`
-	Tag    string  `yaml:"tag,omitempty"`
-	Head   string  `yaml:"head"`
-	Extras []Extra `yaml:"extra"`
+	Source        string        `yaml:"src"`
+	BuildStrategy BuildStrategy `yaml:"build-strategy,omitempty"`
+	Branch        string        `yaml:"branch,omitempty"`
+	Tag           string        `yaml:"tag,omitempty"`
+	Head          string        `yaml:"head"`
+	Extras        []Extra       `yaml:"extra"`
 }
 
 type Subscription struct {
@@ -318,6 +331,9 @@ func (r *Repo) Update(dir, name string) error {
 	}
 	newhead = bytes.TrimSpace(newhead)
 	r.Head = string(newhead)
+	if r.BuildStrategy == BuildStrategyInvalid {
+		r.BuildStrategy = BuildStrategyCherry
+	}
 	return nil
 }
 
@@ -334,6 +350,12 @@ func (r *Repo) Prepare(dir, name string) error {
 func (r *Repo) Cherry(dir, name, changeset string) error {
 	repo := gitRepo(filepath.Join(dir, `src`, name))
 	_, err := repo.git(`cherry-pick`, changeset)
+	return err
+}
+
+func (r *Repo) Merge(dir, name, changeset string) error {
+	repo := gitRepo(filepath.Join(dir, `src`, name))
+	_, err := repo.git(`merge`, `--no-ff`, `--no-edit`, changeset)
 	return err
 }
 

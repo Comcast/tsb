@@ -64,6 +64,7 @@ that looks like:
 ```yaml
 wgt:
   src: https://git.example.net/widget
+  build-strategy: cherry
   branch: master
   head: <long changeset id here>
   extra: []
