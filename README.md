@@ -21,13 +21,14 @@ Commands
     running the services in `docker-compose.yml` with docker should produce the
     build artefacts.
   - `tsb update` fetches the latest updates and creates a new commit in
-    the config repository. This will also fetch the latest updates in the 
+    the config repository. This will also fetch the latest updates in the
     subscribed branches and update the patch file's subscriptions.
   - `tsb cherry {hash}` cherry-picks `{hash}` and adds it to the patch
     file.
   - `tsb subscribe {branch}` subscribes to the given branch. The branch must
     be in the form `{repoName}:{branchName}`. The branch name must specify
-    the name of the remote that the subscription should be pulled from (`remoteName/branchName`). 
+    the name of the remote that the subscription should be pulled from
+    (`remoteName/branchName`).
     The subscription is then added to the patch file.
   - `tsb ls-cherry` lists out the current list of cherry-picks, along
     with some basic information about them to help identify them.
@@ -41,6 +42,12 @@ Commands
     `tsb` directory be a git repository.
   - `tsb {dir}` changes directory into `{dir}`. This is useful for
     running `tsb` against a subdirectory.
+  - `tsb changelog {old hash}` generates a changelog between `old hash`
+    and HEAD of tsb.  If not provided, `old hash` is the previous
+    tsb commit
+  - `tsb diff {old hash}` generates a detailed changelog between
+    `old hash` and HEAD of tsb.  If not provided, `old hash` is the
+    previous tsb commit
 
 Config Repository
 -----------------

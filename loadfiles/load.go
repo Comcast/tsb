@@ -24,6 +24,7 @@ import (
 	"reflect"
 	"strings"
 
+	toml "github.com/pelletier/go-toml"
 	yaml "gopkg.in/yaml.v3"
 )
 
@@ -80,6 +81,8 @@ func Load(dir File, obj interface{}) error {
 				return json.NewDecoder(f).Decode(member)
 			case `xml`:
 				return xml.NewDecoder(f).Decode(member)
+			case `toml`:
+				return toml.NewDecoder(f).Decode(member)
 			case `text`:
 				b, err := ioutil.ReadAll(f)
 				if err != nil {
