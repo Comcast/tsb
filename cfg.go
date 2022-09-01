@@ -52,12 +52,13 @@ type Subscription struct {
 
 type Changeset struct {
 	Node    string
+	Ref     string
 	Comment string
 }
 
 type Patch struct {
-	Str Changeset
-	Sub *Subscription
+	Change Changeset
+	Sub    *Subscription
 }
 
 type Patches map[string][]Patch
@@ -92,8 +93,8 @@ func (l Extra) MarshalYAML() (interface{}, error) {
 }
 
 func (l Patch) MarshalYAML() (interface{}, error) {
-	if l.Str.Node != "" {
-		return l.Str, nil
+	if l.Change.Node != "" {
+		return l.Change, nil
 	} else if l.Sub != nil {
 		return l.Sub, nil
 	} else {
@@ -102,9 +103,9 @@ func (l Patch) MarshalYAML() (interface{}, error) {
 }
 
 func (l *Patch) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var str Changeset
-	if err := unmarshal(&str); err == nil {
-		*l = Patch{Str: str}
+	var chg Changeset
+	if err := unmarshal(&chg); err == nil {
+		*l = Patch{Change: chg}
 		return nil
 	}
 	var sub Subscription
@@ -122,7 +123,17 @@ func (cs *Changeset) UnmarshalYAML(value *yaml.Node) error {
 	if err != nil {
 		return err
 	}
-	cs.Comment = value.LineComment
+	comment := strings.TrimSpace(value.LineComment)
+	comment = strings.TrimPrefix(comment, `# `)
+	if 0 < len(comment) {
+		fields := strings.SplitN(comment, ` `, 2)
+		if 0 < len(fields) {
+			cs.Ref = fields[0]
+		}
+		if 1 < len(fields) {
+			cs.Comment = fields[1]
+		}
+	}
 	return nil
 }
 
@@ -132,7 +143,7 @@ func (cs Changeset) MarshalYAML() (interface{}, error) {
 	if err != nil {
 		return cs.Node, err
 	}
-	value.LineComment = cs.Comment
+	value.LineComment = cs.Ref + ` ` + cs.Comment
 	return value, nil
 }
 
@@ -326,7 +337,7 @@ func (r *Repo) Cherry(dir, name, changeset string) error {
 	return err
 }
 
-const ChangesetGitFormatArg = `--format=%H %aI!%ae %s`
+const ChangesetGitFormatArg = `--format=%H <%aI!%ae> %s`
 
 /* NewChangeset constructs a new changeset object from a line that matches git format "%H %aI!%ae %s".
  *
@@ -334,20 +345,17 @@ const ChangesetGitFormatArg = `--format=%H %aI!%ae %s`
  * http://www.catb.org/esr/reposurgeon/repository-editing.html#_step_six_good_practice
  */
 func NewChangeset(line string) Changeset {
+	var chg Changeset
 	parts := strings.SplitN(line, ` `, 3)
-	var node, ref, sub string
 	switch {
 	case len(parts) > 2:
-		sub = parts[2]
+		chg.Comment = parts[2]
 		fallthrough
 	case len(parts) > 1:
-		ref = parts[1]
+		chg.Ref = parts[1]
 		fallthrough
 	case len(parts) > 0:
-		node = parts[0]
+		chg.Node = parts[0]
 	}
-	return Changeset{
-		Node:    node,
-		Comment: fmt.Sprintf("<%s> %s", ref, sub),
-	}
+	return chg
 }

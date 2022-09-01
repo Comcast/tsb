@@ -22,7 +22,6 @@ package main
  */
 
 /*
-
 import (
 	"errors"
 	"time"
@@ -30,10 +29,10 @@ import (
 
 type Changeset struct {
 	Repo        gitRepo
+	Hash        string
+	Time        time.Time
 	Author      string
 	Description string
-	Time        time.Time
-	Hash        string
 }
 type Changesets []Changeset
 
