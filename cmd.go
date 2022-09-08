@@ -489,7 +489,7 @@ type Changelog struct {
 
 type Changelogs []Changelog
 
-func (l Changelogs) Print(detailed bool) {
+func (l Changelogs) PrintMarkdown(detailed bool) {
 	first := true
 	for _, change := range l {
 		if first {
@@ -498,11 +498,17 @@ func (l Changelogs) Print(detailed bool) {
 			fmt.Println()
 		}
 
-		fmt.Println(`====`, change.Name, change.Repo)
-		fmt.Println(`HEAD:`, change.Head)
-		fmt.Println(`Prev:`, change.Prev)
+		title := change.Name + ` ` + change.Repo
+		fmt.Println(title)
+		fmt.Println(strings.Repeat(`=`, len(title)))
 
-		var pfunc = func(changes []Changeset, detailed bool) {
+		fmt.Println(`- HEAD:`, change.Head)
+		fmt.Println(`- Prev:`, change.Prev)
+
+		var pfunc = func(title string, changes []Changeset, detailed bool) {
+			fmt.Println()
+			fmt.Println(title)
+			fmt.Println(strings.Repeat(`-`, len(title)))
 			for _, change := range changes {
 				if detailed {
 					fmt.Println(`-`, change.Node, change.Ref, change.Comment)
@@ -518,27 +524,19 @@ func (l Changelogs) Print(detailed bool) {
 		}
 
 		if 0 < len(change.CommitsAdded) {
-			fmt.Println()
-			fmt.Println(`**** Commits Added`)
-			pfunc(change.CommitsAdded, detailed)
+			pfunc(`Commits Added`, change.CommitsAdded, detailed)
 		}
 
 		if 0 < len(change.CommitsRemoved) {
-			fmt.Println()
-			fmt.Println(`**** Commits Removed`)
-			pfunc(change.CommitsRemoved, detailed)
+			pfunc(`Commits Removed`, change.CommitsRemoved, detailed)
 		}
 
 		if 0 < len(change.PatchesAdded) {
-			fmt.Println()
-			fmt.Println(`**** Patches Added`)
-			pfunc(change.PatchesAdded, detailed)
+			pfunc(`Patches Added`, change.PatchesAdded, detailed)
 		}
 
 		if 0 < len(change.PatchesRemoved) {
-			fmt.Println()
-			fmt.Println(`**** Patches Removed`)
-			pfunc(change.PatchesRemoved, detailed)
+			pfunc(`Patches Removed`, change.PatchesRemoved, detailed)
 		}
 	}
 }
@@ -669,7 +667,7 @@ func (e *Executor) Diff(detailed bool) error {
 		changelogs = append(changelogs, changelog)
 	}
 
-	changelogs.Print(detailed)
+	changelogs.PrintMarkdown(detailed)
 
 	return nil
 }
