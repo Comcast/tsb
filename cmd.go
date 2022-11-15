@@ -88,12 +88,13 @@ func (e *Executor) Execute() error {
 				for _, patch_item := range cfg.Patches[name] {
 					chg := patch_item.Change
 					if chg.Node != "" {
-						if repo.BuildStrategy == BuildStrategyCherry {
-							err = repo.Cherry(e.Dir(), name, chg.Node)
-						} else if repo.BuildStrategy == BuildStrategyMerge {
+						if repo.BuildStrategy == BuildStrategyMerge {
 							err = repo.Merge(e.Dir(), name, chg.Node)
-						} else {
-							return fmt.Errorf("Unrecognized build strategy %s in repo yaml file", repo.BuildStrategy)
+						} else { // default to cherry
+							err = repo.Cherry(e.Dir(), name, chg.Node)
+							if verbose {
+								fmt.Fprintf(os.Stderr, "build-strategy for '%s' fallback to 'cherry'.\n", name)
+							}
 						}
 						if err != nil {
 							return fmt.Errorf("Unable to apply %s to %s: "+chg.Node, name, err.Error())
