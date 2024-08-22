@@ -123,12 +123,12 @@ func (e *Executor) Execute() error {
 
 		if cmd == `build` {
 			for _, service := range cfg.Compose.ServiceNames() {
-				b, err := run(`docker compose`, `-f`, path.Join(e.Dir(), `docker-compose.yml`), `build`, `--pull`, `--no-cache`, `--force-rm`, service)
+				b, err := run(`docker`, `compose`, `-f`, path.Join(e.Dir(), `docker-compose.yml`), `build`, `--pull`, `--no-cache`, `--force-rm`, service)
 				if err != nil {
 					return errors.New(`Unable to create build image ` + service + `: ` + err.Error() + "\n" + string(b))
 				}
 
-				b, err = run(`docker compose`, `-f`, path.Join(e.Dir(), `docker-compose.yml`), `run`, `--rm`, service)
+				b, err = run(`docker`, `compose`, `-f`, path.Join(e.Dir(), `docker-compose.yml`), `run`, `--rm`, service)
 				if err != nil {
 					return errors.New(`Failed to build ` + service + `: ` + err.Error() + "\n" + string(b))
 				}
