@@ -23,7 +23,7 @@ import (
 	"reflect"
 	"strings"
 
-	yaml "gopkg.in/yaml.v3"
+	yaml "go.yaml.in/yaml/v3"
 )
 
 func Store(dir File, obj interface{}) error {
