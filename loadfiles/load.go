@@ -24,7 +24,7 @@ import (
 	"reflect"
 	"strings"
 
-	toml "github.com/pelletier/go-toml"
+	toml "github.com/pelletier/go-toml/v2"
 	yaml "gopkg.in/yaml.v3"
 )
 
