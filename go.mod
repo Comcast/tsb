@@ -1,6 +1,6 @@
 module github.com/comcast/tsb
 
-go 1.15
+go 1.21.0
 
 require (
 	github.com/pelletier/go-toml v1.9.5
