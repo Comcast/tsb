@@ -1614,11 +1614,11 @@ func yaml_parser_scan_to_next_token(parser *yaml_parser_t) bool {
 // Scan a YAML-DIRECTIVE or TAG-DIRECTIVE token.
 //
 // Scope:
-//      %YAML    1.1    # a comment \n
-//      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-//      %TAG    !yaml!  tag:yaml.org,2002:  \n
-//      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 //
+//	%YAML    1.1    # a comment \n
+//	^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+//	%TAG    !yaml!  tag:yaml.org,2002:  \n
+//	^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 func yaml_parser_scan_directive(parser *yaml_parser_t, token *yaml_token_t) bool {
 	// Eat '%'.
 	start_mark := parser.mark
@@ -1719,11 +1719,11 @@ func yaml_parser_scan_directive(parser *yaml_parser_t, token *yaml_token_t) bool
 // Scan the directive name.
 //
 // Scope:
-//      %YAML   1.1     # a comment \n
-//       ^^^^
-//      %TAG    !yaml!  tag:yaml.org,2002:  \n
-//       ^^^
 //
+//	%YAML   1.1     # a comment \n
+//	 ^^^^
+//	%TAG    !yaml!  tag:yaml.org,2002:  \n
+//	 ^^^
 func yaml_parser_scan_directive_name(parser *yaml_parser_t, start_mark yaml_mark_t, name *[]byte) bool {
 	// Consume the directive name.
 	if parser.unread < 1 && !yaml_parser_update_buffer(parser, 1) {
@@ -1758,8 +1758,9 @@ func yaml_parser_scan_directive_name(parser *yaml_parser_t, start_mark yaml_mark
 // Scan the value of VERSION-DIRECTIVE.
 //
 // Scope:
-//      %YAML   1.1     # a comment \n
-//           ^^^^^^
+//
+//	%YAML   1.1     # a comment \n
+//	     ^^^^^^
 func yaml_parser_scan_version_directive_value(parser *yaml_parser_t, start_mark yaml_mark_t, major, minor *int8) bool {
 	// Eat whitespaces.
 	if parser.unread < 1 && !yaml_parser_update_buffer(parser, 1) {
@@ -1797,10 +1798,11 @@ const max_number_length = 2
 // Scan the version number of VERSION-DIRECTIVE.
 //
 // Scope:
-//      %YAML   1.1     # a comment \n
-//              ^
-//      %YAML   1.1     # a comment \n
-//                ^
+//
+//	%YAML   1.1     # a comment \n
+//	        ^
+//	%YAML   1.1     # a comment \n
+//	          ^
 func yaml_parser_scan_version_directive_number(parser *yaml_parser_t, start_mark yaml_mark_t, number *int8) bool {
 
 	// Repeat while the next character is digit.
@@ -1834,9 +1836,9 @@ func yaml_parser_scan_version_directive_number(parser *yaml_parser_t, start_mark
 // Scan the value of a TAG-DIRECTIVE token.
 //
 // Scope:
-//      %TAG    !yaml!  tag:yaml.org,2002:  \n
-//          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 //
+//	%TAG    !yaml!  tag:yaml.org,2002:  \n
+//	    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 func yaml_parser_scan_tag_directive_value(parser *yaml_parser_t, start_mark yaml_mark_t, handle, prefix *[]byte) bool {
 	var handle_value, prefix_value []byte
 
@@ -2260,10 +2262,9 @@ func yaml_parser_scan_block_scalar(parser *yaml_parser_t, token *yaml_token_t, l
 		}
 	}
 	if parser.buffer[parser.buffer_pos] == '#' {
-		// TODO Test this and then re-enable it.
-		//if !yaml_parser_scan_line_comment(parser, start_mark) {
-		//	return false
-		//}
+		if !yaml_parser_scan_line_comment(parser, start_mark) {
+			return false
+		}
 		for !is_breakz(parser.buffer, parser.buffer_pos) {
 			skip(parser)
 			if parser.unread < 1 && !yaml_parser_update_buffer(parser, 1) {
@@ -2848,7 +2849,7 @@ func yaml_parser_scan_line_comment(parser *yaml_parser_t, token_mark yaml_mark_t
 			continue
 		}
 		if parser.buffer[parser.buffer_pos+peek] == '#' {
-			seen := parser.mark.index+peek
+			seen := parser.mark.index + peek
 			for {
 				if parser.unread < 1 && !yaml_parser_update_buffer(parser, 1) {
 					return false
@@ -2877,7 +2878,7 @@ func yaml_parser_scan_line_comment(parser *yaml_parser_t, token_mark yaml_mark_t
 		parser.comments = append(parser.comments, yaml_comment_t{
 			token_mark: token_mark,
 			start_mark: start_mark,
-			line: text,
+			line:       text,
 		})
 	}
 	return true
@@ -2892,6 +2893,10 @@ func yaml_parser_scan_comments(parser *yaml_parser_t, scan_mark yaml_mark_t) boo
 
 	var token_mark = token.start_mark
 	var start_mark yaml_mark_t
+	var next_indent = parser.indent
+	if next_indent < 0 {
+		next_indent = 0
+	}
 
 	var recent_empty = false
 	var first_empty = parser.newlines <= 1
@@ -2907,7 +2912,7 @@ func yaml_parser_scan_comments(parser *yaml_parser_t, scan_mark yaml_mark_t) boo
 	// the foot is the line below it.
 	var foot_line = -1
 	if scan_mark.line > 0 {
-		foot_line = parser.mark.line-parser.newlines+1
+		foot_line = parser.mark.line - parser.newlines + 1
 		if parser.newlines == 0 && parser.mark.column > 1 {
 			foot_line++
 		}
@@ -2923,15 +2928,18 @@ func yaml_parser_scan_comments(parser *yaml_parser_t, scan_mark yaml_mark_t) boo
 			continue
 		}
 		c := parser.buffer[parser.buffer_pos+peek]
-		if is_breakz(parser.buffer, parser.buffer_pos+peek) || parser.flow_level > 0 && (c == ']' || c == '}') {
+		var close_flow = parser.flow_level > 0 && (c == ']' || c == '}')
+		if close_flow || is_breakz(parser.buffer, parser.buffer_pos+peek) {
 			// Got line break or terminator.
-			if !recent_empty {
-				if first_empty && (start_mark.line == foot_line || start_mark.column-1 < parser.indent) {
+			if close_flow || !recent_empty {
+				if close_flow || first_empty && (start_mark.line == foot_line && token.typ != yaml_VALUE_TOKEN || start_mark.column-1 < next_indent) {
 					// This is the first empty line and there were no empty lines before,
 					// so this initial part of the comment is a foot of the prior token
 					// instead of being a head for the following one. Split it up.
+					// Alternatively, this might also be the last comment inside a flow
+					// scope, so it must be a footer.
 					if len(text) > 0 {
-						if start_mark.column-1 < parser.indent {
+						if start_mark.column-1 < next_indent {
 							// If dedented it's unrelated to the prior token.
 							token_mark = start_mark
 						}
@@ -2962,7 +2970,7 @@ func yaml_parser_scan_comments(parser *yaml_parser_t, scan_mark yaml_mark_t) boo
 			continue
 		}
 
-		if len(text) > 0 && column < parser.indent+1 && column != start_mark.column {
+		if len(text) > 0 && (close_flow || column-1 < next_indent && column != start_mark.column) {
 			// The comment at the different indentation is a foot of the
 			// preceding data rather than a head of the upcoming one.
 			parser.comments = append(parser.comments, yaml_comment_t{
@@ -2990,7 +2998,7 @@ func yaml_parser_scan_comments(parser *yaml_parser_t, scan_mark yaml_mark_t) boo
 		recent_empty = false
 
 		// Consume until after the consumed comment line.
-		seen := parser.mark.index+peek
+		seen := parser.mark.index + peek
 		for {
 			if parser.unread < 1 && !yaml_parser_update_buffer(parser, 1) {
 				return false
@@ -3013,6 +3021,10 @@ func yaml_parser_scan_comments(parser *yaml_parser_t, scan_mark yaml_mark_t) boo
 		peek = 0
 		column = 0
 		line = parser.mark.line
+		next_indent = parser.indent
+		if next_indent < 0 {
+			next_indent = 0
+		}
 	}
 
 	if len(text) > 0 {

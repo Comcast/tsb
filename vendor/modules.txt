@@ -5,6 +5,6 @@ github.com/pelletier/go-toml/v2/internal/characters
 github.com/pelletier/go-toml/v2/internal/danger
 github.com/pelletier/go-toml/v2/internal/tracker
 github.com/pelletier/go-toml/v2/unstable
-# gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776
-## explicit
-gopkg.in/yaml.v3
+# go.yaml.in/yaml/v3 v3.0.4
+## explicit; go 1.16
+go.yaml.in/yaml/v3
